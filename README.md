@@ -2,7 +2,7 @@
 
 本項目實現了Mistral模型到LLaDA模型的轉換和微調，參考了LLaDA論文中的方法。
 
-LLaDA（Language Model as a Denoising Autoencoder）是一種將自回歸語言模型轉換為掩碼預測器的架構，主要修改了Transformer架構中的自注意力機制，移除了因果掩碼。
+LLaDA（Large Language Diffusion with mAsking）是一種將自回歸語言模型轉換為掩碼預測器的架構，主要修改了Transformer架構中的自注意力機制，移除了因果掩碼。
 
 ## 項目結構
 
