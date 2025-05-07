@@ -1,33 +1,33 @@
-# Mistral转LLaDA模型训练
+# Mistral轉LLaDA模型訓練
 
-本项目实现了Mistral模型到LLaDA模型的转换和微调，参考了LLaDA论文中的方法。
+本項目實現了Mistral模型到LLaDA模型的轉換和微調，參考了LLaDA論文中的方法。
 
-LLaDA（Language Model as a Denoising Autoencoder）是一种将自回归语言模型转换为掩码预测器的架构，主要修改了Transformer架构中的自注意力机制，移除了因果掩码。
+LLaDA（Language Model as a Denoising Autoencoder）是一種將自回歸語言模型轉換為掩碼預測器的架構，主要修改了Transformer架構中的自注意力機制，移除了因果掩碼。
 
-## 项目结构
+## 項目結構
 
-- `llada_loss.py`: LLaDA的核心损失函数实现
-- `mistral_to_llada.py`: Mistral模型到LLaDA模型的转换工具
-- `data_processor.py`: 数据处理工具，支持将文本数据转换为npy文件
-- `train.py`: 训练脚本，支持预训练和SFT两种模式
-- `configuration_llada.py`: LLaDA模型配置（从项目中已有）
-- `modeling_llada.py`: LLaDA模型定义（从项目中已有）
+- `llada_loss.py`: LLaDA的核心損失函數實現
+- `mistral_to_llada.py`: Mistral模型到LLaDA模型的轉換工具
+- `data_processor.py`: 數據處理工具，支持將文本數據轉換為npy文件
+- `train.py`: 訓練腳本，支持預訓練和SFT兩種模式
+- `configuration_llada.py`: LLaDA模型配置（從項目中已有）
+- `modeling_llada.py`: LLaDA模型定義（從項目中已有）
 
-## 环境要求
+## 環境要求
 
 - Python 3.8+
 - PyTorch 2.0+
 - Transformers 4.30+
-- 其他依赖项可通过`pip install -r requirements.txt`安装
+- 其他依賴項可通過`pip install -r requirements.txt`安裝
 
 ## 使用方法
 
-### 数据预处理
+### 數據預處理
 
-本项目支持从本地TXT文件或Huggingface数据集加载数据，并将其处理为npy格式以加速训练：
+本項目支持從本地TXT文件或Huggingface數據集加載數據，並將其處理為npy格式以加速訓練：
 
 ```bash
-# 预处理本地TXT文件
+# 預處理本地TXT文件
 python train.py \
   --model_name_or_path mistralai/Mistral-7B-v0.1 \
   --txt_files "data/*.txt" \
@@ -35,7 +35,7 @@ python train.py \
   --mode pretrain \
   --output_dir ./output
 
-# 预处理Huggingface数据集
+# 預處理Huggingface數據集
 python train.py \
   --model_name_or_path mistralai/Mistral-7B-v0.1 \
   --hf_dataset "wikitext/wikitext-2-v1" \
@@ -44,7 +44,7 @@ python train.py \
   --mode pretrain \
   --output_dir ./output
 
-# 创建并使用示例数据进行快速测试
+# 創建並使用示例數據進行快速測試
 python train.py \
   --model_name_or_path Locutusque/TinyMistral-248M \
   --create_example_data \
@@ -56,7 +56,7 @@ python train.py \
   --output_dir ./output
 ```
 
-### 预训练
+### 預訓練
 
 ```bash
 python train.py \
@@ -73,7 +73,7 @@ python train.py \
   --output_dir ./output
 ```
 
-### SFT（监督微调）
+### SFT（監督微調）
 
 ```bash
 python train.py \
@@ -90,9 +90,9 @@ python train.py \
   --output_dir ./output
 ```
 
-## SFT数据格式
+## SFT數據格式
 
-SFT数据应为JSON格式，包含用户和助手对话：
+SFT數據應為JSON格式，包含用戶和助手對話：
 
 ```json
 [
@@ -107,27 +107,27 @@ SFT数据应为JSON格式，包含用户和助手对话：
 ]
 ```
 
-## 参数说明
+## 參數說明
 
-- `--model_name_or_path`: 预训练Mistral模型的路径或名称
-- `--mode`: 训练模式，可选"pretrain"或"sft"
-- `--txt_files`: 本地TXT文件的通配符路径（预训练模式）
-- `--hf_dataset`: Huggingface数据集名称（预训练模式）
-- `--sft_json`: SFT模式下的对话JSON文件路径
-- `--batch_size`: 训练批次大小
-- `--epochs`: 训练轮数
-- `--learning_rate`: 学习率
-- `--max_seq_length`: 序列最大长度
-- `--activation_checkpointing`: 是否使用激活检查点
-- `--checkpointing_strategy`: 激活检查点策略
-- `--bf16`: 是否使用bf16精度训练
-- `--fp16`: 是否使用fp16精度训练
-- `--process_data`: 重新处理数据
-- `--output_dir`: 输出目录
+- `--model_name_or_path`: 預訓練Mistral模型的路徑或名稱
+- `--mode`: 訓練模式，可選"pretrain"或"sft"
+- `--txt_files`: 本地TXT文件的通配符路徑（預訓練模式）
+- `--hf_dataset`: Huggingface數據集名稱（預訓練模式）
+- `--sft_json`: SFT模式下的對話JSON文件路徑
+- `--batch_size`: 訓練批次大小
+- `--epochs`: 訓練輪數
+- `--learning_rate`: 學習率
+- `--max_seq_length`: 序列最大長度
+- `--activation_checkpointing`: 是否使用激活檢查點
+- `--checkpointing_strategy`: 激活檢查點策略
+- `--bf16`: 是否使用bf16精度訓練
+- `--fp16`: 是否使用fp16精度訓練
+- `--process_data`: 重新處理數據
+- `--output_dir`: 輸出目錄
 
-## 技术细节
+## 技術細節
 
-1. 本项目通过移除Mistral模型中的因果掩码，将其从自回归模型转换为掩码预测器。
-2. 仅针对注意力层进行微调，冻结了MLP参数，以减少训练成本。
-3. 支持梯度检查点和混合精度训练，以优化训练效率和内存使用。
-4. 支持预处理数据并缓存为npy文件，以加速训练过程。 
+1. 本項目通過移除Mistral模型中的因果掩碼，將其從自回歸模型轉換為掩碼預測器。
+2. 僅針對注意力層進行微調，凍結了MLP參數，以減少訓練成本。
+3. 支持梯度檢查點和混合精度訓練，以優化訓練效率和內存使用。
+4. 支持預處理數據並緩存為npy文件，以加速訓練過程。 
