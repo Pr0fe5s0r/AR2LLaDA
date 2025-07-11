@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import os
 
 from transformers import AutoTokenizer, AutoModel
-from modeling_llada import LLaDAModelLM
+from modeling_llada import LLaDAModelLM, LLaDAConfig
 
 def add_gumbel_noise(logits, temperature):
     '''
@@ -137,7 +137,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     try:
         model = LLaDAModelLM.from_pretrained('output/checkpoint-4300', trust_remote_code=True, torch_dtype=torch.bfloat16).to(device).eval()
-        tokenizer = AutoTokenizer.from_pretrained('output/checkpoint-4300', trust_remote_code=True)
+        tokenizer = LLaDAConfig.from_pretrained('output/checkpoint-4300', trust_remote_code=True)
     except Exception as e:
         print(f"Error loading model or tokenizer: {e}")
         return
