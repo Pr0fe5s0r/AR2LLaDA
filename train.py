@@ -151,7 +151,7 @@ def train(args):
                         args.hf_dataset, 
                         text_column=args.hf_text_column,
                         force_reprocess=True,
-                        test_mode=True
+                        test_mode=False
                     )
                 elif args.txt_files:
                     logger.info(f"Processing text files: {args.txt_files}")
