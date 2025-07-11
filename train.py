@@ -150,7 +150,8 @@ def train(args):
                     npy_paths = processor.process_hf_dataset(
                         args.hf_dataset, 
                         text_column=args.hf_text_column,
-                        force_reprocess=True
+                        force_reprocess=True,
+                        test_mode=True
                     )
                 elif args.txt_files:
                     logger.info(f"Processing text files: {args.txt_files}")
