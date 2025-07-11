@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import os
 
 from transformers import AutoTokenizer, AutoModel
-
+from modeling_llada import LLaDAModelLM
 
 def add_gumbel_noise(logits, temperature):
     '''
@@ -43,23 +43,23 @@ def get_num_transfer_tokens(mask_index, steps):
 
 def get_mask_token_id(model):
     """
-    從模型配置或環境變量獲取mask_token_id
+    Get mask_token_id from model config or environment variable
     
     Args:
-        model: LLaDA模型
+        model: LLaDA model
         
     Returns:
         int: mask_token_id
     """
-    # 首先嘗試從模型配置獲取
+    # First try to get from model config
     if hasattr(model, 'config') and hasattr(model.config, 'mask_token_id'):
         return model.config.mask_token_id
     
-    # 然後嘗試從環境變量獲取
+    # Then try to get from environment variable
     if 'LLADA_MASK_TOKEN_ID' in os.environ:
         return int(os.environ['LLADA_MASK_TOKEN_ID'])
     
-    # 最後使用默認值
+    # Finally use default value
     return 126336
 
 
@@ -136,46 +136,46 @@ def generate(model, prompt, steps=256, gen_length=256, block_length=256, tempera
 def main():
     device = 'cuda'
 
-    model = AutoModel.from_pretrained('F:/llada/output/checkpoint-50000', trust_remote_code=True, torch_dtype=torch.bfloat16).to(device).eval()
+    model = LLaDAModelLM.from_pretrained('F:/llada/output/checkpoint-50000', trust_remote_code=True, torch_dtype=torch.bfloat16).to(device).eval()
     tokenizer = AutoTokenizer.from_pretrained('F:/llada/output/checkpoint-50000', trust_remote_code=True)
 
     prompt = "Lily can run 12 kilometers per hour for 4 hours. After that, she runs 6 kilometers per hour. How many kilometers can she run in 8 hours?"
 
-    # 檢測模型類型（基礎模型或指導模型）
+    # Detect model type (base model or instruct model)
     is_instruct_model = False
     
-    # 從模型配置或文件名判斷是否為指導模型
+    # Determine if it is an instruct model from model config or file name
     if hasattr(model, 'config') and hasattr(model.config, 'model_type'):
         is_instruct_model = "instruct" in model.config.model_type.lower()
     
     if not is_instruct_model and hasattr(model, 'name_or_path'):
         is_instruct_model = "instruct" in model.name_or_path.lower()
     
-    print(f"檢測到模型類型: {'指導模型' if is_instruct_model else '基礎模型'}")
+    print(f"Detected model type: {'Instruct model' if is_instruct_model else 'Base model'}")
     
-    # 根據模型類型選擇是否使用聊天模板
+    # Choose whether to use chat template based on model type
     if is_instruct_model:
         try:
-            # 嘗試使用聊天模板（對於指導模型）
+            # Try to use chat template (for instruct models)
             m = [{"role": "user", "content": prompt}]
             formatted_prompt = tokenizer.apply_chat_template(m, add_generation_prompt=True, tokenize=False)
-            print("使用聊天模板格式化提示")
+            print("Using chat template to format prompt")
         except (AttributeError, ValueError) as e:
-            # 如果聊天模板不可用，退回到手動格式化
+            # If chat template is not available, fallback to manual formatting
             formatted_prompt = f"User: {prompt}\nAssistant: "
-            print(f"聊天模板不可用，使用手動格式化: {str(e)}")
+            print(f"Chat template not available, using manual formatting: {str(e)}")
     else:
-        # 基礎模型直接使用提示
+        # Base model uses prompt directly
         formatted_prompt = prompt
-        print("基礎模型：直接使用提示，不應用聊天模板")
+        print("Base model: using prompt directly, not applying chat template")
     
-    # 編碼格式化後的提示
+    # Encode the formatted prompt
     input_ids = tokenizer(formatted_prompt)['input_ids']
     input_ids = torch.tensor(input_ids).to(device).unsqueeze(0)
 
-    # 自動獲取mask_token_id
+    # Automatically get mask_token_id
     mask_token_id = get_mask_token_id(model)
-    print(f"使用mask_token_id: {mask_token_id}")
+    print(f"Using mask_token_id: {mask_token_id}")
 
     out = generate(model, input_ids, steps=1024, gen_length=1024, block_length=512, 
                   temperature=0.7, cfg_scale=3, remasking='random', 

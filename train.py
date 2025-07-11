@@ -13,7 +13,7 @@ from llada_loss import compute_pretrain_loss, compute_sft_loss
 from data_processor import TextDatasetProcessor, NpyDataset, create_dataloader
 from mistral_to_llada import convert_mistral_to_llada, freeze_mlp_parameters
 
-# 設置日志
+# Set up logging
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
@@ -23,66 +23,66 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="訓練LLaDA模型")
-    parser.add_argument("--model_name_or_path", type=str, required=True, help="預訓練Mistral模型的路徑或名稱")
-    parser.add_argument("--output_dir", type=str, default="./output", help="輸出目錄")
-    parser.add_argument("--data_dir", type=str, default="./data", help="數據目錄")
-    parser.add_argument("--cache_dir", type=str, default="./processed_data", help="預處理數據緩存目錄")
-    parser.add_argument("--logging_steps", type=int, default=10, help="每多少步記錄一次日志")
-    parser.add_argument("--save_steps", type=int, default=100, help="每多少步保存一次模型")
+    parser = argparse.ArgumentParser(description="Train LLaDA model")
+    parser.add_argument("--model_name_or_path", type=str, required=True, help="Path or name of pretrained Mistral model")
+    parser.add_argument("--output_dir", type=str, default="./output", help="Output directory")
+    parser.add_argument("--data_dir", type=str, default="./data", help="Data directory")
+    parser.add_argument("--cache_dir", type=str, default="./processed_data", help="Preprocessed data cache directory")
+    parser.add_argument("--logging_steps", type=int, default=10, help="Log every N steps")
+    parser.add_argument("--save_steps", type=int, default=100, help="Save model every N steps")
     
-    # 訓練參數
-    parser.add_argument("--mode", type=str, choices=["pretrain", "sft"], default="pretrain", help="訓練模式")
-    parser.add_argument("--max_seq_length", type=int, default=2048, help="序列最大長度")
-    parser.add_argument("--batch_size", type=int, default=8, help="訓練批次大小")
-    parser.add_argument("--epochs", type=int, default=3, help="訓練輪數")
-    parser.add_argument("--learning_rate", type=float, default=5e-5, help="學習率")
-    parser.add_argument("--weight_decay", type=float, default=0.01, help="權重衰減")
-    parser.add_argument("--warmup_ratio", type=float, default=0.1, help="預熱步數比例")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=8, help="梯度累積步數")
-    parser.add_argument("--seed", type=int, default=42, help="隨機種子")
+    # Training parameters
+    parser.add_argument("--mode", type=str, choices=["pretrain", "sft"], default="pretrain", help="Training mode")
+    parser.add_argument("--max_seq_length", type=int, default=2048, help="Maximum sequence length")
+    parser.add_argument("--batch_size", type=int, default=8, help="Training batch size")
+    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
+    parser.add_argument("--learning_rate", type=float, default=5e-5, help="Learning rate")
+    parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay")
+    parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup steps ratio")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=8, help="Gradient accumulation steps")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
     
-    # 模型參數
-    parser.add_argument("--activation_checkpointing", action="store_true", help="是否使用激活檢查點")
+    # Model parameters
+    parser.add_argument("--activation_checkpointing", action="store_true", help="Use activation checkpointing")
     parser.add_argument("--checkpointing_strategy", type=str, default="one_in_four", 
                         choices=["whole_layer", "one_in_two", "one_in_three", "one_in_four", "fine_grained"], 
-                        help="激活檢查點策略")
+                        help="Activation checkpointing strategy")
     
-    # 精度參數
-    parser.add_argument("--bf16", action="store_true", help="是否使用bf16精度訓練")
-    parser.add_argument("--fp16", action="store_true", help="是否使用fp16精度訓練")
+    # Precision parameters
+    parser.add_argument("--bf16", action="store_true", help="Use bf16 precision training")
+    parser.add_argument("--fp16", action="store_true", help="Use fp16 precision training")
     
-    # 數據處理參數
-    parser.add_argument("--process_data", action="store_true", help="重新處理數據")
-    parser.add_argument("--txt_files", type=str, default=None, help="要處理的txt文件通配符路徑")
-    parser.add_argument("--hf_dataset", type=str, default=None, help="要處理的Huggingface數據集名稱或本地數據路徑")
-    parser.add_argument("--hf_text_column", type=str, default="text", help="Huggingface數據集中的文本列名稱")
-    parser.add_argument("--sft_json", type=str, default=None, help="SFT模式下的對話JSON文件路徑")
+    # Data processing parameters
+    parser.add_argument("--process_data", action="store_true", help="Reprocess data")
+    parser.add_argument("--txt_files", type=str, default=None, help="Glob path to txt files to process")
+    parser.add_argument("--hf_dataset", type=str, default=None, help="Huggingface dataset name or local data path to process")
+    parser.add_argument("--hf_text_column", type=str, default="text", help="Text column name in Huggingface dataset")
+    parser.add_argument("--sft_json", type=str, default=None, help="Path to conversation JSON file for SFT mode")
     
-    # 創建示例數據文件的選項
-    parser.add_argument("--create_example_data", action="store_true", help="創建示例數據文件用於測試")
+    # Option to create example data file
+    parser.add_argument("--create_example_data", action="store_true", help="Create example data file for testing")
     
     args = parser.parse_args()
     
-    # 處理路徑，將相對路徑轉換為絕對路徑
+    # Handle paths, convert relative to absolute
     if args.txt_files and not os.path.isabs(args.txt_files):
         args.txt_files = os.path.abspath(args.txt_files)
     
-    if args.hf_dataset and not args.hf_dataset.startswith("wikitext/") and not os.path.isabs(args.hf_dataset):
-        args.hf_dataset = os.path.abspath(args.hf_dataset)
+    # if args.hf_dataset and not args.hf_dataset.startswith("wikitext/") and not os.path.isabs(args.hf_dataset):
+    #     args.hf_dataset = os.path.abspath(args.hf_dataset)
     
     return args
 
 
 def train(args):
-    # 設置隨機種子
+    # Set random seed
     set_seed(args.seed)
     
-    # 創建輸出目錄
+    # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(args.cache_dir, exist_ok=True)
     
-    # 如果需要創建示例數據
+    # If need to create example data
     if args.create_example_data:
         example_data_path = os.path.join(args.data_dir, "example_data.txt")
         
@@ -90,41 +90,41 @@ def train(args):
             os.makedirs(args.data_dir, exist_ok=True)
             
         with open(example_data_path, "w", encoding="utf-8") as f:
-            f.write("這是一個示例數據文件，用於測試LLaDA模型訓練。\n")
-            f.write("LLaDA是一種將自回歸語言模型轉換為掩碼預測器的架構。\n")
-            f.write("它通過移除Transformer的因果掩碼，使模型能夠雙向注意。\n")
+            f.write("This is an example data file for testing LLaDA model training.\n")
+            f.write("LLaDA is an architecture that converts autoregressive language models into mask predictors.\n")
+            f.write("It enables the model to attend bidirectionally by removing the causal mask from the Transformer.\n")
             for i in range(100):
-                f.write(f"這是示例數據的第{i+1}行文本，提供更多訓練內容。\n")
+                f.write(f"This is line {i+1} of example data, providing more training content.\n")
         
-        logger.info(f"創建了示例數據文件: {example_data_path}")
+        logger.info(f"Created example data file: {example_data_path}")
         
-        # 如果沒有指定數據源，使用示例數據
+        # If no data source specified, use example data
         if not args.txt_files and not args.hf_dataset:
             args.txt_files = example_data_path
-            logger.info(f"將使用示例數據進行訓練: {args.txt_files}")
+            logger.info(f"Using example data for training: {args.txt_files}")
     
-    # 加載tokenizer
+    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     
-    # 確保tokenizer有正確的特殊標記，使用bos_token_id作為mask_token_id
+    # Ensure tokenizer has correct special tokens, use bos_token_id as mask_token_id
     if hasattr(tokenizer, 'bos_token_id') and tokenizer.bos_token_id:
-        logger.info(f"使用bos_token_id作為mask_token_id: {tokenizer.bos_token_id}")
+        logger.info(f"Using bos_token_id as mask_token_id: {tokenizer.bos_token_id}")
         mask_token_id = tokenizer.bos_token_id
     else:
-        logger.warning(f"Tokenizer沒有bos_token_id，將使用eos_token_id代替: {tokenizer.eos_token_id}")
+        logger.warning(f"Tokenizer does not have bos_token_id, using eos_token_id instead: {tokenizer.eos_token_id}")
         mask_token_id = tokenizer.eos_token_id
     
-    # 將mask_token_id設置為全局常量，方便在其他地方使用
+    # Set mask_token_id as global constant for use elsewhere
     os.environ["LLADA_MASK_TOKEN_ID"] = str(mask_token_id)
     
-    # 數據處理
+    # Data processing
     processor = TextDatasetProcessor(
         tokenizer=tokenizer,
         max_length=args.max_seq_length,
         cache_dir=args.cache_dir
     )
     
-    # 根據訓練模式處理數據
+    # Process data according to training mode
     if args.mode == "pretrain":
         if args.process_data or (not args.txt_files and not args.hf_dataset):
             if args.txt_files:
@@ -136,36 +136,36 @@ def train(args):
                     force_reprocess=args.process_data
                 )
             else:
-                raise ValueError("預訓練模式需要指定txt_files或hf_dataset參數")
+                raise ValueError("Pretrain mode requires txt_files or hf_dataset parameter")
         else:
-            # 使用已處理的數據
+            # Use already processed data
             npy_paths = [os.path.join(args.cache_dir, f) for f in os.listdir(args.cache_dir) 
                          if f.startswith("pretrain") and f.endswith(".npy")]
             
-            # 如果沒有找到預處理的數據文件，則提示處理數據
+            # If no preprocessed data files found, prompt to process data
             if not npy_paths:
-                logger.warning("未找到預處理的數據文件。請使用--process_data參數進行數據處理，或提供正確的--txt_files或--hf_dataset參數。")
+                logger.warning("No preprocessed data files found. Please use --process_data to process data, or provide correct --txt_files or --hf_dataset parameter.")
                 if args.hf_dataset:
-                    logger.info(f"正在處理數據集: {args.hf_dataset}")
+                    logger.info(f"Processing dataset: {args.hf_dataset}")
                     npy_paths = processor.process_hf_dataset(
                         args.hf_dataset, 
                         text_column=args.hf_text_column,
                         force_reprocess=True
                     )
                 elif args.txt_files:
-                    logger.info(f"正在處理文本文件: {args.txt_files}")
+                    logger.info(f"Processing text files: {args.txt_files}")
                     npy_paths = processor.process_txt_files(args.txt_files, force_reprocess=True)
                 else:
-                    raise ValueError("未找到預處理的數據文件，且未指定txt_files或hf_dataset參數")
+                    raise ValueError("No preprocessed data files found and no txt_files or hf_dataset parameter specified")
         
-        # 確保找到了數據文件
+        # Ensure data files found
         if not npy_paths:
-            raise ValueError("無法找到或處理數據文件，請檢查您的參數")
+            raise ValueError("Could not find or process data files, please check your parameters")
             
         dataset = NpyDataset(npy_paths, is_sft=False)
-    else:  # SFT模式
+    else:  # SFT mode
         if not args.sft_json:
-            raise ValueError("SFT模式需要指定sft_json參數")
+            raise ValueError("SFT mode requires sft_json parameter")
         
         npy_paths = processor.process_conversations(
             args.sft_json, 
@@ -173,34 +173,54 @@ def train(args):
         )
         dataset = NpyDataset(npy_paths, is_sft=True)
     
-    # 創建數據加載器
+    # Create data loader
     dataloader = create_dataloader(
         dataset, 
         batch_size=args.batch_size, 
         shuffle=True
     )
     
-    # 設置設備
+    # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # 加載並轉換模型
-    logger.info(f"加載Mistral模型: {args.model_name_or_path}")
+    # Load and convert model
+    logger.info(f"Loading Mistral model: {args.model_name_or_path}")
     llada_model = convert_mistral_to_llada(args.model_name_or_path)
+
+    # Freeze parameters according to model type
+    if 'qwen' in args.model_name_or_path.lower():
+        logger.info("Detected Qwen model: freezing all but attention layers (q_proj, k_proj, v_proj, o_proj)")
+        for name, param in llada_model.named_parameters():
+            if (
+                ".self_attn.q_proj." in name or
+                ".self_attn.k_proj." in name or
+                ".self_attn.v_proj." in name or
+                ".self_attn.o_proj." in name
+            ):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+    else:
+        logger.info("Freezing MLP parameters, only updating attention layers")
+        freeze_mlp_parameters(llada_model)
+
+    # Print parameter statistics
+    total_params = sum(p.numel() for p in llada_model.parameters())
+    trainable_params = sum(p.numel() for p in llada_model.parameters() if p.requires_grad)
+    logger.info(f"Total parameters: {total_params/1e9:.3f}B")
+    logger.info(f"Trainable parameters: {trainable_params/1e6:.2f}M")
+    logger.info(f"Percentage trainable: {100 * trainable_params / total_params:.2f}%")
     
-    # 凍結MLP參數
-    logger.info("凍結MLP參數，只更新注意力層")
-    freeze_mlp_parameters(llada_model)
-    
-    # 激活檢查點
+    # Activation checkpointing
     if args.activation_checkpointing:
         strategy = getattr(ActivationCheckpointingStrategy, args.checkpointing_strategy)
-        logger.info(f"使用激活檢查點策略: {strategy}")
+        logger.info(f"Using activation checkpointing strategy: {strategy}")
         llada_model.model.set_activation_checkpointing(strategy)
     
-    # 將模型移至設備
+    # Move model to device
     llada_model.to(device)
     
-    # 準備優化器
+    # Prepare optimizer
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
@@ -217,57 +237,57 @@ def train(args):
     
     optimizer = optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
     
-    # 計算總訓練步數
+    # Calculate total training steps
     total_steps = len(dataloader) * args.epochs // args.gradient_accumulation_steps
     warmup_steps = int(total_steps * args.warmup_ratio)
     
-    # 創建學習率調度器
+    # Create learning rate scheduler
     scheduler = get_linear_schedule_with_warmup(
         optimizer, 
         num_warmup_steps=warmup_steps, 
         num_training_steps=total_steps
     )
     
-    # 使用混合精度訓練
+    # Use mixed precision training
     scaler = None
     if args.bf16 and torch.cuda.is_bf16_supported():
-        logger.info("使用 BF16 精度訓練")
+        logger.info("Using BF16 precision training")
         amp_dtype = torch.bfloat16
         autocast_enabled = True
     elif args.fp16:
-        logger.info("使用 FP16 精度訓練")
+        logger.info("Using FP16 precision training")
         amp_dtype = torch.float16
         autocast_enabled = True
         scaler = torch.cuda.amp.GradScaler()
     else:
-        logger.info("使用 FP32 精度訓練")
+        logger.info("Using FP32 precision training")
         amp_dtype = torch.float32
         autocast_enabled = False
     
-    # 訓練循環
+    # Training loop
     global_step = 0
     llada_model.train()
     
     for epoch in range(args.epochs):
-        logger.info(f"開始 Epoch {epoch+1}/{args.epochs}")
+        logger.info(f"Starting Epoch {epoch+1}/{args.epochs}")
         
         epoch_iterator = tqdm(dataloader, desc=f"Epoch {epoch+1}")
         
         for step, batch in enumerate(epoch_iterator):
-            # 將數據移至設備
+            # Move data to device
             batch = {k: v.to(device) for k, v in batch.items()}
             
             with torch.cuda.amp.autocast(enabled=autocast_enabled, dtype=amp_dtype):
-                # 根據模式計算損失
+                # Compute loss according to mode
                 if args.mode == "pretrain":
                     loss = compute_pretrain_loss(llada_model, batch, mask_token_id)
-                else:  # SFT模式
+                else:  # SFT mode
                     loss = compute_sft_loss(llada_model, batch, mask_token_id)
                 
-                # 梯度累積
+                # Gradient accumulation
                 loss = loss / args.gradient_accumulation_steps
             
-            # 梯度計算與更新
+            # Gradient calculation and update
             if scaler is not None:
                 scaler.scale(loss).backward()
             else:
@@ -287,20 +307,20 @@ def train(args):
                 optimizer.zero_grad()
                 global_step += 1
                 
-                # 日志記錄
+                # Logging
                 if global_step % args.logging_steps == 0:
-                    logger.info(f"步驟 {global_step} - 損失: {loss.item() * args.gradient_accumulation_steps:.4f}")
+                    logger.info(f"Step {global_step} - Loss: {loss.item() * args.gradient_accumulation_steps:.4f}")
                 
-                # 保存模型
+                # Save model
                 if global_step % args.save_steps == 0:
                     output_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                     os.makedirs(output_path, exist_ok=True)
                     
-                    # 保存模型
+                    # Save model
                     llada_model.save_pretrained(output_path)
                     tokenizer.save_pretrained(output_path)
                     
-                    # 保存mask_token_id
+                    # Save mask_token_id
                     config_path = os.path.join(output_path, "config.json")
                     if os.path.exists(config_path):
                         import json
@@ -310,16 +330,16 @@ def train(args):
                         with open(config_path, 'w', encoding='utf-8') as f:
                             json.dump(config, f, indent=2)
                     
-                    logger.info(f"保存模型檢查點到 {output_path}")
+                    logger.info(f"Saved model checkpoint to {output_path}")
     
-    # 保存最終模型
+    # Save final model
     final_output_path = os.path.join(args.output_dir, "final-model")
     os.makedirs(final_output_path, exist_ok=True)
     
     llada_model.save_pretrained(final_output_path)
     tokenizer.save_pretrained(final_output_path)
     
-    # 保存mask_token_id
+    # Save mask_token_id
     config_path = os.path.join(final_output_path, "config.json")
     if os.path.exists(config_path):
         import json
@@ -329,7 +349,7 @@ def train(args):
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
     
-    logger.info(f"訓練完成，保存最終模型到 {final_output_path}")
+    logger.info(f"Training complete, final model saved to {final_output_path}")
 
 
 if __name__ == "__main__":

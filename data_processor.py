@@ -94,49 +94,49 @@ class TextDatasetProcessor:
             已處理數據的路徑列表
         """
         # 提取數據集名稱用於文件命名
-        dataset_id = dataset_name.replace("/", "_").replace("\\", "_").replace(".", "_")
-        if dataset_name.startswith("./") or dataset_name.startswith(".\\"):
-            dataset_id = os.path.basename(dataset_name)
+        # dataset_id = dataset_name.replace("/", "_").replace("\\", "_").replace(".", "_")
+        # if dataset_name.startswith("./") or dataset_name.startswith(".\\"):
+        #     dataset_id = os.path.basename(dataset_name)
         
         # 檢查是否已存在處理好的文件
-        output_path = os.path.join(self.cache_dir, f"{output_prefix}_{dataset_id}_{split}.npy")
+        output_path = os.path.join(self.cache_dir, f"{output_prefix}_{dataset_name}_{split}.npy")
         if os.path.exists(output_path) and not force_reprocess:
             logger.info(f"找到已處理的數據文件: {output_path}")
             return [output_path]
         
         try:
             # 首先嘗試作為本地路徑加載
-            if os.path.exists(dataset_name):
-                if os.path.isdir(dataset_name):
-                    # 是本地目錄，嘗試作為數據集加載
-                    logger.info(f"從本地路徑加載數據集: {dataset_name}")
-                    dataset = load_dataset(dataset_name, split=split)
-                else:
-                    # 是本地文件，直接讀取
-                    logger.info(f"讀取本地文件: {dataset_name}")
-                    with open(dataset_name, 'r', encoding='utf-8') as f:
-                        texts = [line.strip() for line in f if line.strip()]
+            # if os.path.exists(dataset_name):
+            #     if os.path.isdir(dataset_name):
+            #         # 是本地目錄，嘗試作為數據集加載
+            #         logger.info(f"從本地路徑加載數據集: {dataset_name}")
+            #         dataset = load_dataset(dataset_name, split=split)
+            #     else:
+            #         # 是本地文件，直接讀取
+            #         logger.info(f"讀取本地文件: {dataset_name}")
+            #         with open(dataset_name, 'r', encoding='utf-8') as f:
+            #             texts = [line.strip() for line in f if line.strip()]
                     
-                    all_tokenized_data = []
-                    for text in tqdm(texts, desc=f"處理 {dataset_name}"):
-                        tokenized_data = self.tokenizer.encode(text)
-                        all_tokenized_data.extend(tokenized_data)
+            #         all_tokenized_data = []
+            #         for text in tqdm(texts, desc=f"處理 {dataset_name}"):
+            #             tokenized_data = self.tokenizer.encode(text)
+            #             all_tokenized_data.extend(tokenized_data)
                     
-                    # 切分為固定長度的序列
-                    sequences = []
-                    for i in range(0, len(all_tokenized_data) - self.max_length + 1, self.max_length - self.overlap):
-                        sequences.append(all_tokenized_data[i:i + self.max_length])
+            #         # 切分為固定長度的序列
+            #         sequences = []
+            #         for i in range(0, len(all_tokenized_data) - self.max_length + 1, self.max_length - self.overlap):
+            #             sequences.append(all_tokenized_data[i:i + self.max_length])
                     
-                    # 轉換為numpy數組並保存
-                    sequences_array = np.array(sequences, dtype=np.int32)
-                    np.save(output_path, sequences_array)
+            #         # 轉換為numpy數組並保存
+            #         sequences_array = np.array(sequences, dtype=np.int32)
+            #         np.save(output_path, sequences_array)
                     
-                    logger.info(f"已處理並保存數據到: {output_path}")
-                    return [output_path]
-            else:
-                # 嘗試從Hugging Face Hub加載
-                logger.info(f"從Hugging Face Hub加載數據集: {dataset_name}")
-                dataset = load_dataset(dataset_name, split=split)
+            #         logger.info(f"已處理並保存數據到: {output_path}")
+            #         return [output_path]
+            # else:
+            # 嘗試從Hugging Face Hub加載
+            logger.info(f"從Hugging Face Hub加載數據集: {dataset_name}")
+            dataset = load_dataset(dataset_name, split=split)
         except Exception as e:
             logger.error(f"加載數據集 {dataset_name} 時出錯: {str(e)}")
             raise ValueError(f"無法加載數據集 {dataset_name}: {str(e)}")
@@ -145,6 +145,7 @@ class TextDatasetProcessor:
         
         # 處理數據集中的每個樣本
         for item in tqdm(dataset, desc=f"處理 {dataset_name}"):
+            # print(item)
             text = item[text_column]
             
             # 標記化文本
