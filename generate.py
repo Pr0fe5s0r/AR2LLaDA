@@ -134,41 +134,42 @@ def generate(model, prompt, steps=256, gen_length=256, block_length=256, tempera
 
 
 def main():
-    device = 'cuda'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    try:
+        model = LLaDAModelLM.from_pretrained('output/checkpoint-4300', trust_remote_code=True, torch_dtype=torch.bfloat16).to(device).eval()
+        tokenizer = AutoTokenizer.from_pretrained('output/checkpoint-4300', trust_remote_code=True)
+    except Exception as e:
+        print(f"Error loading model or tokenizer: {e}")
+        return
 
-    model = LLaDAModelLM.from_pretrained('F:/llada/output/checkpoint-50000', trust_remote_code=True, torch_dtype=torch.bfloat16).to(device).eval()
-    tokenizer = AutoTokenizer.from_pretrained('F:/llada/output/checkpoint-50000', trust_remote_code=True)
+    # Print all parameter names and which are trainable
+    print("Model parameters and trainable status:")
+    for name, param in model.named_parameters():
+        print(f"{name} - trainable: {param.requires_grad}")
 
     prompt = "Lily can run 12 kilometers per hour for 4 hours. After that, she runs 6 kilometers per hour. How many kilometers can she run in 8 hours?"
 
     # Detect model type (base model or instruct model)
     is_instruct_model = False
-    
-    # Determine if it is an instruct model from model config or file name
     if hasattr(model, 'config') and hasattr(model.config, 'model_type'):
         is_instruct_model = "instruct" in model.config.model_type.lower()
-    
     if not is_instruct_model and hasattr(model, 'name_or_path'):
         is_instruct_model = "instruct" in model.name_or_path.lower()
-    
     print(f"Detected model type: {'Instruct model' if is_instruct_model else 'Base model'}")
-    
+
     # Choose whether to use chat template based on model type
     if is_instruct_model:
         try:
-            # Try to use chat template (for instruct models)
             m = [{"role": "user", "content": prompt}]
             formatted_prompt = tokenizer.apply_chat_template(m, add_generation_prompt=True, tokenize=False)
             print("Using chat template to format prompt")
         except (AttributeError, ValueError) as e:
-            # If chat template is not available, fallback to manual formatting
             formatted_prompt = f"User: {prompt}\nAssistant: "
             print(f"Chat template not available, using manual formatting: {str(e)}")
     else:
-        # Base model uses prompt directly
         formatted_prompt = prompt
         print("Base model: using prompt directly, not applying chat template")
-    
+
     # Encode the formatted prompt
     input_ids = tokenizer(formatted_prompt)['input_ids']
     input_ids = torch.tensor(input_ids).to(device).unsqueeze(0)
@@ -177,11 +178,14 @@ def main():
     mask_token_id = get_mask_token_id(model)
     print(f"Using mask_token_id: {mask_token_id}")
 
-    out = generate(model, input_ids, steps=1024, gen_length=1024, block_length=512, 
-                  temperature=0.7, cfg_scale=3, remasking='random', 
-                  mask_token_id=mask_token_id)
-    print(tokenizer.batch_decode(out[:, input_ids.shape[1]:], skip_special_tokens=True)[0])
-
+    try:
+        out = generate(model, input_ids, steps=1024, gen_length=1024, block_length=512, 
+                      temperature=0.7, cfg_scale=3, remasking='random', 
+                      mask_token_id=mask_token_id)
+        print("[LLaDA Output] (may differ from AR models):")
+        print(tokenizer.batch_decode(out[:, input_ids.shape[1]:], skip_special_tokens=True)[0])
+    except Exception as e:
+        print(f"Error during generation: {e}")
 
 if __name__ == '__main__':
     main()
