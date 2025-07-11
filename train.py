@@ -123,46 +123,53 @@ def train(args):
         max_length=args.max_seq_length,
         cache_dir=args.cache_dir
     )
-    
+
+    # Add test_mode argument if present
+    test_mode = getattr(args, 'test_mode', False)
+
     # Process data according to training mode
     if args.mode == "pretrain":
-        if args.process_data or (not args.txt_files and not args.hf_dataset):
-            if args.txt_files:
-                npy_paths = processor.process_txt_files(args.txt_files, force_reprocess=args.process_data)
-            elif args.hf_dataset:
-                npy_paths = processor.process_hf_dataset(
-                    args.hf_dataset, 
-                    text_column=args.hf_text_column,
-                    force_reprocess=args.process_data
-                )
-            else:
-                raise ValueError("Pretrain mode requires txt_files or hf_dataset parameter")
+        # Check if processed npy file exists
+        npy_filename = f"pretrain_{args.hf_dataset}_{'train' if not hasattr(args, 'split') else args.split}.npy" if args.hf_dataset else None
+        npy_path = os.path.join(args.cache_dir, npy_filename) if npy_filename else None
+        if npy_path and os.path.exists(npy_path):
+            logger.info(f"Found existing processed data file: {npy_path}")
+            npy_paths = [npy_path]
         else:
-            # Use already processed data
-            npy_paths = [os.path.join(args.cache_dir, f) for f in os.listdir(args.cache_dir) 
-                         if f.startswith("pretrain") and f.endswith(".npy")]
-            
-            # If no preprocessed data files found, prompt to process data
-            if not npy_paths:
-                logger.warning("No preprocessed data files found. Please use --process_data to process data, or provide correct --txt_files or --hf_dataset parameter.")
-                if args.hf_dataset:
-                    logger.info(f"Processing dataset: {args.hf_dataset}")
+            if args.process_data or (not args.txt_files and not args.hf_dataset):
+                if args.txt_files:
+                    npy_paths = processor.process_txt_files(args.txt_files, force_reprocess=args.process_data)
+                elif args.hf_dataset:
                     npy_paths = processor.process_hf_dataset(
                         args.hf_dataset, 
                         text_column=args.hf_text_column,
-                        force_reprocess=True,
-                        test_mode=False
+                        force_reprocess=args.process_data,
+                        test_mode=test_mode
                     )
-                elif args.txt_files:
-                    logger.info(f"Processing text files: {args.txt_files}")
-                    npy_paths = processor.process_txt_files(args.txt_files, force_reprocess=True)
                 else:
-                    raise ValueError("No preprocessed data files found and no txt_files or hf_dataset parameter specified")
-        
+                    raise ValueError("Pretrain mode requires txt_files or hf_dataset parameter")
+            else:
+                # Use already processed data
+                npy_paths = [os.path.join(args.cache_dir, f) for f in os.listdir(args.cache_dir) 
+                             if f.startswith("pretrain") and f.endswith(".npy")]
+                if not npy_paths:
+                    logger.warning("No preprocessed data files found. Please use --process_data to process data, or provide correct --txt_files or --hf_dataset parameter.")
+                    if args.hf_dataset:
+                        logger.info(f"Processing dataset: {args.hf_dataset}")
+                        npy_paths = processor.process_hf_dataset(
+                            args.hf_dataset, 
+                            text_column=args.hf_text_column,
+                            force_reprocess=True,
+                            test_mode=test_mode
+                        )
+                    elif args.txt_files:
+                        logger.info(f"Processing text files: {args.txt_files}")
+                        npy_paths = processor.process_txt_files(args.txt_files, force_reprocess=True)
+                    else:
+                        raise ValueError("No preprocessed data files found and no txt_files or hf_dataset parameter specified")
         # Ensure data files found
         if not npy_paths:
             raise ValueError("Could not find or process data files, please check your parameters")
-            
         dataset = NpyDataset(npy_paths, is_sft=False)
     else:  # SFT mode
         if not args.sft_json:
