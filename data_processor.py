@@ -79,7 +79,7 @@ class TextDatasetProcessor:
         logger.info(f"已處理並保存數據到: {output_path}")
         return [output_path]
     
-    def process_hf_dataset(self, dataset_name, text_column="text", split="train", output_prefix="pretrain", force_reprocess=False):
+    def process_hf_dataset(self, dataset_name, text_column="text", split="train", output_prefix="pretrain", force_reprocess=False, test_mode=False):
         """
         處理Huggingface數據集並保存為npy文件
         
@@ -89,7 +89,7 @@ class TextDatasetProcessor:
             split: 要處理的數據分割
             output_prefix: 輸出文件的前綴
             force_reprocess: 是否強制重新處理，即使已有處理好的文件
-            
+            test_mode: 僅處理前10個樣本以進行測試
         Returns:
             已處理數據的路徑列表
         """
@@ -144,12 +144,18 @@ class TextDatasetProcessor:
         all_tokenized_data = []
         
         # 處理數據集中的每個樣本
-        for item in tqdm(dataset, desc=f"處理 {dataset_name}"):
-            # print(item)
+        if test_mode:
+            logger.info("[TEST MODE] 只處理前10個樣本以進行測試。")
+            dataset_iter = dataset.select(range(min(10, len(dataset))))
+        else:
+            dataset_iter = dataset
+        for item in tqdm(dataset_iter, desc=f"處理 {dataset_name}"):
             text = item[text_column]
-            
             # 標記化文本
             tokenized_data = self.tokenizer.encode(text)
+            # 跳過過長的樣本
+            if len(tokenized_data) > self.max_length:
+                continue
             all_tokenized_data.extend(tokenized_data)
         
         # 切分為固定長度的序列
@@ -159,6 +165,7 @@ class TextDatasetProcessor:
         
         # 轉換為numpy數組並保存
         sequences_array = np.array(sequences, dtype=np.int32)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         np.save(output_path, sequences_array)
         
         logger.info(f"已處理並保存數據到: {output_path}")
