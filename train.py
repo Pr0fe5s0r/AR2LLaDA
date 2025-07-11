@@ -196,21 +196,21 @@ def train(args):
     llada_model = convert_mistral_to_llada(args.model_name_or_path)
 
     # Freeze parameters according to model type
-    if 'qwen' in args.model_name_or_path.lower():
-        logger.info("Detected Qwen model: freezing all but attention layers (q_proj, k_proj, v_proj, o_proj)")
-        for name, param in llada_model.named_parameters():
-            if (
-                ".self_attn.q_proj." in name or
-                ".self_attn.k_proj." in name or
-                ".self_attn.v_proj." in name or
-                ".self_attn.o_proj." in name
-            ):
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
-    else:
-        logger.info("Freezing MLP parameters, only updating attention layers")
-        freeze_mlp_parameters(llada_model)
+    # if 'qwen' in args.model_name_or_path.lower():
+    #     logger.info("Detected Qwen model: freezing all but attention layers (q_proj, k_proj, v_proj, o_proj)")
+    #     for name, param in llada_model.named_parameters():
+    #         if (
+    #             ".self_attn.q_proj." in name or
+    #             ".self_attn.k_proj." in name or
+    #             ".self_attn.v_proj." in name or
+    #             ".self_attn.o_proj." in name
+    #         ):
+    #             param.requires_grad = True
+    #         else:
+    #             param.requires_grad = False
+    # else:
+    #     logger.info("Freezing MLP parameters, only updating attention layers")
+    freeze_mlp_parameters(llada_model)
 
     # Print parameter statistics
     total_params = sum(p.numel() for p in llada_model.parameters())
